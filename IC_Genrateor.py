@@ -27,7 +27,7 @@ BoxSize = 50*u.pc
 gamma = 5./3.
 n = 1/u.cm**3  #core density for the powerlaw case
 T_init = 1e4*u.K
-X_H = 0.76
+X_H = 0.76 #H abundance, 0.76 for primordial, 1 for pure hydrogen
 
 #Resolution
 CellsPerDimension = 64 #Spatial resolution, !! for Uniform-Staggered-wind mode, total number of cells is 2*CellsPerDimension**3
