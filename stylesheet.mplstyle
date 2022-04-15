@@ -1,0 +1,18 @@
+# Set fontsize and options
+font.size: 8
+font.family: STIXGeneral
+
+# Set the figure size for MNRAS
+figure.figsize: 3.3, 3.0
+
+# Remove padding
+figure.constrained_layout.use: True
+figure.constrained_layout.h_pad: 0.005
+figure.constrained_layout.w_pad: 0.005
+figure.constrained_layout.hspace: 0.005
+figure.constrained_layout.wspace: 0.005
+
+xtick.direction: in
+ytick.direction: in
+
+axes.prop_cycle: cycler('color', ['0077BB', '33BBEE', '009988', 'EE7733', 'CC3311', 'EE3377', 'BBBBBB', 'EEEEEE'])
