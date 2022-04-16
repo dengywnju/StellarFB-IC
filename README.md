@@ -5,6 +5,8 @@ This is a python-based initial condition genereting tool for developing
 the stellar feedback implications in the moving-mesh cosmological simulation 
 code AREPO. 
 
+Author: Yunwei Deng
+
 Requirement
 ===========
 python3
