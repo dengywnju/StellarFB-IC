@@ -8,37 +8,42 @@ import astropy.constants as c
 import IC_Checker
 
 #######Select a type of IC###########################################################
-
-#TypeOfIC = 'Uniform-Regular'
-#TypeOfIC = 'Uniform-Staggered'
-#TypeOfIC = 'Powerlaw'
-#TypeOfIC = 'Powerlaw_with_floor'
-TypeOfIC = 'Uniform-Staggered-wind'
+########Mass Resolution##############################################################
+#TypeOfIC = 'Uniform-Regular'          #uniform density medium with regular Cartesian mesh
+TypeOfIC = 'Uniform-Staggered'         #uniform density medium with staggered Cartesian mesh
+#TypeOfIC = 'Powerlaw'                 #uniform core + powlaw skirt
+#TypeOfIC = 'Powerlaw_with_floor'      #uniform core + powlaw skirt + uniform background
+#######Spatial Resolution#############################################################
+#TypeOfIC = 'Uniform-Staggered-wind'   #uniform density medium with staggered Cartesian mesh
 
 #####Set Initial Conditions###########################################################
 #Star
-M_Star = 4*u.solMass
-Q = 1e48/u.s
+M_Star = 20*u.solMass #initial stellar mass
+Q = 1e48/u.s #total ionising photon rate (for FIXED_RATE mode)
 Q0 = (1e63/u.Gyr).to(1/u.s)
 FIXED_RATE = (Q/Q0).value
+Z = 1e-2 #Metallicity
+Zi = np.array([5e-3,3e-3,2e-3,0,0,0,0,0,0]) #metals C, N, O, Ne, Mg, Si, S, Ca, Fe
 
 #Gas
-BoxSize = 50*u.pc
+BoxSize = 20*u.pc
 gamma = 5./3.
-n = 1/u.cm**3  #core density for the powerlaw case
+n = 100/u.cm**3  #core density for the powerlaw case
 T_init = 1e4*u.K
-X_H = 0.76 #H abundance, 0.76 for primordial, 1 for pure hydrogen
+X_H = 1 #H abundance, 0.76 for primordial, 1 for pure hydrogen
 
 #Resolution
 CellsPerDimension = 64 #Spatial resolution, !! for Uniform-Staggered-wind mode, total number of cells is 2*CellsPerDimension**3
-MassResolution = 1000 #Ionized Mass resolution
+MassResolution = 10000 #Ionized Mass resolution
 
 #Specific parameters for powerlaw modes
 w = 2
 r0 = 0.75*u.pc
 floorfactor = 1e-4
 ####################################################################################
-stromgren = IC.StromgrenSphere(M_Star, Q, n, X_H, T_init)
+#stromgren = IC.StromgrenSphere(M_Star, Q, n, X_H, T_init)
+centralStar = IC.CentralStar(M_Star, Q, n, X_H, T_init, Z, Zi)
+
 
 if TypeOfIC == 'Uniform-Regular':
     print("IC-Generator: Generating...")
@@ -50,7 +55,7 @@ if TypeOfIC == 'Uniform-Regular':
     print("IC-Generator: FIXED_RATE", FIXED_RATE)
     print("IC-Generator: BoxSize:", str(BoxSize.value)+' pc')
     print("IC-Generator: CellsPerDimension:", CellsPerDimension)
-    filename = IC.Uniform_IC_Generate(stromgren, BoxSize, 
+    filename = IC.Uniform_IC_Generate(centralStar, BoxSize, 
          CellsPerDimension, int(FIXED_RATE), gamma)
     print("IC-Generator: Filename:", filename)
     IC_Checker.Checker(filename, TypeOfIC, w, n, X_H, r0, gamma)
@@ -65,7 +70,7 @@ if TypeOfIC == 'Uniform-Staggered':
     print("IC-Generator: FIXED_RATE", FIXED_RATE)
     print("IC-Generator: BoxSize:", str(BoxSize.value)+' pc')
     print("IC-Generator: MassResolution:", MassResolution)
-    filename = IC.Staggered_IC_Generate(stromgren, BoxSize, 
+    filename = IC.Staggered_IC_Generate(centralStar, BoxSize, 
          MassResolution, int(FIXED_RATE), gamma)
     print("IC-Generator: Filename:", filename)
     IC_Checker.Checker(filename, TypeOfIC, w, n, X_H, r0, gamma)
@@ -80,7 +85,7 @@ if TypeOfIC == 'Uniform-Staggered-wind':
     print("IC-Generator: FIXED_RATE", FIXED_RATE)
     print("IC-Generator: BoxSize:", str(BoxSize.value)+' pc')
     print("IC-Generator: CellsPerDimension:", CellsPerDimension)
-    filename = IC.Staggered_IC_Generate_Wind(stromgren, BoxSize, 
+    filename = IC.Staggered_IC_Generate_Wind(centralStar, BoxSize, 
          CellsPerDimension, int(FIXED_RATE), gamma)
     print("IC-Generator: Filename:", filename)
     IC_Checker.Checker(filename, TypeOfIC, w, n, X_H, r0, gamma)
@@ -97,7 +102,7 @@ if TypeOfIC == 'Powerlaw':
     print("IC-Generator: FIXED_RATE", FIXED_RATE)
     print("IC-Generator: BoxSize:", str(BoxSize.value)+' pc')
     print("IC-Generator: CellsPerDimension:", MassResolution)
-    filename = IC.Powerlaw_IC_Generate(stromgren, MassResolution, w, r0, BoxSize, 
+    filename = IC.Powerlaw_IC_Generate(centralStar, MassResolution, w, r0, BoxSize, 
      int(FIXED_RATE), gamma = 5./3.)
     print("IC-Generator: Filename:", filename)
     IC_Checker.Checker(filename, TypeOfIC, w, n, X_H, r0, gamma)
@@ -115,7 +120,7 @@ if TypeOfIC == 'Powerlaw_with_floor':
     print("IC-Generator: FIXED_RATE", FIXED_RATE)
     print("IC-Generator: BoxSize:", str(BoxSize.value)+' pc')
     print("IC-Generator: MassResolution:", MassResolution)
-    filename = IC.Powerlawfloor_IC_Generate(stromgren, MassResolution, w, r0, BoxSize, floorfactor, int(FIXED_RATE), gamma = 5./3.)
+    filename = IC.Powerlawfloor_IC_Generate(centralStar, MassResolution, w, r0, BoxSize, floorfactor, int(FIXED_RATE), gamma = 5./3.)
     print("IC-Generator: Filename:", filename)
     IC_Checker.Checker(filename, TypeOfIC, w, n, X_H, r0, gamma)
 

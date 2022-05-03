@@ -13,6 +13,33 @@ import scipy.interpolate
 FloatType = np.float32
 IntType = np.int32
 
+class CentralStar(object):
+    def __init__(self, M_star, Q, n, X_H, T_init, Z, Zi):
+        self.M_star = M_star
+        self.Q = Q
+        self.n = n
+        self.X_H = X_H
+        self.n_H = n*X_H
+        self.T_init = T_init
+        self.Z = Z
+        self.Zi = Zi
+        self.aB = self.alpha_B()
+        self.Rs = self.StromgrenRadius()
+        self.trec = self.RecTime()
+        self.StromgrenMass = self.IonizedMass()
+        
+    def alpha_B(self):
+        return 2.59e-13*(1e4*u.K/(1e4*u.K))**(-0.833-0.034*np.log((self.T_init/(1e4*u.K))))*u.cm**3/u.s
+    
+    def StromgrenRadius(self):
+        return (((3*self.Q)/(4*np.pi*(self.n_H)**2*self.aB))**(1/3)).to(u.pc)
+        
+    def RecTime(self):
+        return (1/self.n_H/self.aB).to(u.Myr)   
+
+    def IonizedMass(self):
+        return (c.m_p/self.aB*self.Q/self.n_H).to(u.solMass)
+
 class StromgrenSphere(object):
     def __init__(self, M_star, Q, n, X_H, T_init):
         self.M_star = M_star
@@ -40,20 +67,21 @@ class StromgrenSphere(object):
         return (c.m_p/self.aB*self.Q/self.n_H).to(u.solMass)
 
 
-def Write_to_hdf5(w, MassResolution, M_star, BoxSize, CellsPerDimension, NumberOfCells, FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal):
+def Write_to_hdf5(w, MassResolution, M_star, Z, Zi, BoxSize, CellsPerDimension, NumberOfCells, FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal):
     #Type 4 particle
     Part4CellsPerDimension = 0
     Part4NumberOfCells = Part4CellsPerDimension**3+1
-    Part4MassPerCell = 1e-8
+    #Part4MassPerCell = 1e-8
+    Part4MassPerCell = M_star.value
     Part4Pos = np.zeros([Part4NumberOfCells, 3], dtype = FloatType)
     Random4Pos = random.rand(Part4NumberOfCells, 3)*BoxSize
     Part4Pos[:] = Random4Pos[:]
     Part4Mass = np.full(Part4NumberOfCells, Part4MassPerCell, dtype=FloatType)
     Part4Velocity = np.zeros([Part4NumberOfCells,3], dtype=FloatType)
     MassiveStarMass = np.full(Part4NumberOfCells, -1., dtype=FloatType)
-    GFM_InitialMass = np.zeros((Part4NumberOfCells,), dtype=FloatType)
-    GFM_Metallicity = np.zeros((Part4NumberOfCells,), dtype=FloatType)
-    GFM_Metals = np.zeros((Part4NumberOfCells, 9), dtype=FloatType)
+    GFM_InitialMass = np.full(Part4NumberOfCells, Part4MassPerCell, dtype=FloatType)
+    GFM_Metallicity = np.full((Part4NumberOfCells,),Z, dtype=FloatType)
+    GFM_Metals = np.array(Zi, dtype=FloatType)
     GFM_StellarFormationTime = np.full((Part4NumberOfCells,), 1e-10, dtype=FloatType)
     Part4Pos[0,:] = np.array([BoxSize/2,BoxSize/2,BoxSize/2])
     MassiveStarMass[0] = M_star.value
@@ -142,12 +170,12 @@ def Write_to_hdf5(w, MassResolution, M_star, BoxSize, CellsPerDimension, NumberO
     IC.close()
     return filename
 
-def Uniform_IC_Generate(stromgren, BoxSize, CellsPerDimension, FIXED_RATE, gamma = 5./3.):
+def Uniform_IC_Generate(centralStar, BoxSize, CellsPerDimension, FIXED_RATE, gamma = 5./3.):
     BoxSize = BoxSize.value
     NumberOfCells = int(CellsPerDimension**3)
-    InitialDensity = stromgren.n.to(u.pc**(-3))
-    InitialTemperature = stromgren.T_init
-    X_H = stromgren.X_H 
+    InitialDensity = centralStar.n.to(u.pc**(-3))
+    InitialTemperature = centralStar.T_init
+    X_H = centralStar.X_H 
     mu = 4/(1+3*X_H)
     CellDensity = (InitialDensity*mu*c.m_p).to(u.solMass*u.pc**(-3)).value
     VolumePerCell = BoxSize**3/NumberOfCells
@@ -169,17 +197,17 @@ def Uniform_IC_Generate(stromgren, BoxSize, CellsPerDimension, FIXED_RATE, gamma
     Velocity = np.zeros([NumberOfCells,3], dtype=FloatType)
     Uthermal = np.full(NumberOfCells, UthermalPerCell, dtype=FloatType)
 
-    filename = Write_to_hdf5(0, 0, stromgren.M_star, BoxSize, CellsPerDimension, NumberOfCells,  FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal)
+    filename = Write_to_hdf5(0, 0, centralStar.M_star, centralStar.Z, centralStar.Zi, BoxSize, CellsPerDimension, NumberOfCells,  FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal)
 
-def Staggered_IC_Generate(stromgren, BoxSize, MassResolution, FIXED_RATE, gamma = 5./3.):
-    InitialDensity = stromgren.n.to(u.pc**(-3))
-    InitialTemperature = stromgren.T_init
-    X_H = stromgren.X_H 
+def Staggered_IC_Generate(centralStar, BoxSize, MassResolution, FIXED_RATE, gamma = 5./3.):
+    InitialDensity = centralStar.n.to(u.pc**(-3))
+    InitialTemperature = centralStar.T_init
+    X_H = centralStar.X_H 
     mu = 4/(1+3*X_H)
     CellDensity = (InitialDensity*mu*c.m_p).to(u.solMass*u.pc**(-3)).value
     BoxSize = BoxSize.value
-    Mi = stromgren.StromgrenMass
-    BoxMass = (((BoxSize*u.pc)**3*stromgren.n_H*c.m_p).to(u.solMass)).value
+    Mi = centralStar.StromgrenMass
+    BoxMass = (((BoxSize*u.pc)**3*centralStar.n_H*c.m_p).to(u.solMass)).value
     TargetMass = (Mi/MassResolution).value
     NumberOfCells = BoxMass/(Mi.value/MassResolution)
     CellsPerDimension = int((NumberOfCells/2)**(1/3)+1)
@@ -210,18 +238,18 @@ def Staggered_IC_Generate(stromgren, BoxSize, MassResolution, FIXED_RATE, gamma 
     ## velocity
     Velocity = np.zeros([NumberOfCells,3], dtype=FloatType)
     Uthermal = np.full(NumberOfCells, UthermalPerCell, dtype=FloatType)
-    filename = Write_to_hdf5(0, MassResolution, stromgren.M_star, BoxSize, 0, NumberOfCells, FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal)
+    filename = Write_to_hdf5(0, MassResolution, centralStar.M_star, centralStar.Z, centralStar.Zi, BoxSize, 0, NumberOfCells, FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal)
     return filename
 
-def Staggered_IC_Generate_Wind(stromgren, BoxSize, CellsPerDimension, FIXED_RATE, gamma = 5./3.):
-    InitialDensity = stromgren.n.to(u.pc**(-3))
-    InitialTemperature = stromgren.T_init
-    X_H = stromgren.X_H 
+def Staggered_IC_Generate_Wind(centralStar, BoxSize, CellsPerDimension, FIXED_RATE, gamma = 5./3.):
+    InitialDensity = centralStar.n.to(u.pc**(-3))
+    InitialTemperature = centralStar.T_init
+    X_H = centralStar.X_H 
     mu = 4/(1+3*X_H)
     CellDensity = (InitialDensity*mu*c.m_p).to(u.solMass*u.pc**(-3)).value
     BoxSize = BoxSize.value
-    Mi = stromgren.StromgrenMass
-    BoxMass = (((BoxSize*u.pc)**3*stromgren.n_H*c.m_p).to(u.solMass)).value
+    Mi = centralStar.StromgrenMass
+    BoxMass = (((BoxSize*u.pc)**3*centralStar.n_H*c.m_p).to(u.solMass)).value
     NumberOfCells = 2*CellsPerDimension**3
     VolumePerCell = BoxSize**3/NumberOfCells
     MassPerCell = VolumePerCell*CellDensity
@@ -247,7 +275,7 @@ def Staggered_IC_Generate_Wind(stromgren, BoxSize, CellsPerDimension, FIXED_RATE
     ## velocity
     Velocity = np.zeros([NumberOfCells,3], dtype=FloatType)
     Uthermal = np.full(NumberOfCells, UthermalPerCell, dtype=FloatType)
-    filename = Write_to_hdf5(0, CellsPerDimension, stromgren.M_star, BoxSize, 0, NumberOfCells, FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal)
+    filename = Write_to_hdf5(0, CellsPerDimension, centralStar.M_star, centralStar.Z, centralStar.Zi, BoxSize, 0, NumberOfCells, FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal)
     return filename
 
 
@@ -303,13 +331,13 @@ def Prof_ISO_core_with_floor(r, rho0, r0, rMax, w, floorfactor):
     rholist[rholist<floorfactor*rho0] = floorfactor*rho0
     return rholist
 
-def Powerlaw_IC_Generate(stromgren, MassResolution, w, r0, BoxSize, FIXED_RATE, gamma = 5./3.):
+def Powerlaw_IC_Generate(centralStar, MassResolution, w, r0, BoxSize, FIXED_RATE, gamma = 5./3.):
     BoxSize = BoxSize.value
     r0 = r0.value
-    X_H = stromgren.X_H 
+    X_H = centralStar.X_H 
     mu = 4/(1+3*X_H)
-    rho0 = ((mu*c.m_p*stromgren.n).to(u.solMass*u.pc**(-3))).value
-    Mi = stromgren.StromgrenMass
+    rho0 = ((mu*c.m_p*centralStar.n).to(u.solMass*u.pc**(-3))).value
+    Mi = centralStar.StromgrenMass
     TargetMass = (Mi/MassResolution).value
     rMax = BoxSize/2*np.sqrt(3)
     rIsoCore = np.linspace(0,rMax,1000000)
@@ -322,7 +350,7 @@ def Powerlaw_IC_Generate(stromgren, MassResolution, w, r0, BoxSize, FIXED_RATE, 
             ind_list.append(i)
     coord = coord[ind_list]
     NumberOfCells = coord.shape[0]
-    InitialTemperature = stromgren.T_init
+    InitialTemperature = centralStar.T_init
     UthermalPerCell = (c.k_B*InitialTemperature/mu/c.m_p/(gamma-1)).to((u.km/u.s)**2).value    
     Pos = np.zeros([NumberOfCells, 3], dtype = FloatType)
     Velocity = np.zeros([NumberOfCells, 3], dtype = FloatType)
@@ -334,16 +362,16 @@ def Powerlaw_IC_Generate(stromgren, MassResolution, w, r0, BoxSize, FIXED_RATE, 
     ## velocity
     Velocity = np.zeros([NumberOfCells,3], dtype=FloatType)
     Uthermal = np.full(NumberOfCells, UthermalPerCell, dtype=FloatType)
-    filename = Write_to_hdf5(w, MassResolution, stromgren.M_star, BoxSize, 0, NumberOfCells, FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal)
+    filename = Write_to_hdf5(w, MassResolution, centralStar.M_star, centralStar.Z, centralStar.Zi, BoxSize, 0, NumberOfCells, FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal)
     return filename
 
-def Powerlawfloor_IC_Generate(stromgren, MassResolution, w, r0, BoxSize, floorfactor, FIXED_RATE, gamma = 5./3.):
+def Powerlawfloor_IC_Generate(centralStar, MassResolution, w, r0, BoxSize, floorfactor, FIXED_RATE, gamma = 5./3.):
     BoxSize = BoxSize.value
     r0 = r0.value
-    X_H = stromgren.X_H 
+    X_H = centralStar.X_H 
     mu = 4/(1+3*X_H)
-    rho0 = ((mu*c.m_p*stromgren.n).to(u.solMass*u.pc**(-3))).value
-    Mi = stromgren.StromgrenMass
+    rho0 = ((mu*c.m_p*centralStar.n).to(u.solMass*u.pc**(-3))).value
+    Mi = centralStar.StromgrenMass
     TargetMass = (Mi/MassResolution).value
     rMax = BoxSize/2*np.sqrt(3)
     rIsoCore = np.linspace(0,rMax,1000000)
@@ -356,7 +384,7 @@ def Powerlawfloor_IC_Generate(stromgren, MassResolution, w, r0, BoxSize, floorfa
             ind_list.append(i)
     coord = coord[ind_list]
     NumberOfCells = coord.shape[0]
-    InitialTemperature = stromgren.T_init
+    InitialTemperature = centralStar.T_init
     UthermalPerCell = (c.k_B*InitialTemperature/mu/c.m_p/(gamma-1)).to((u.km/u.s)**2).value    
     Pos = np.zeros([NumberOfCells, 3], dtype = FloatType)
     Velocity = np.zeros([NumberOfCells, 3], dtype = FloatType)
@@ -368,6 +396,6 @@ def Powerlawfloor_IC_Generate(stromgren, MassResolution, w, r0, BoxSize, floorfa
     ## velocity
     Velocity = np.zeros([NumberOfCells,3], dtype=FloatType)
     Uthermal = np.full(NumberOfCells, UthermalPerCell, dtype=FloatType)
-    filename = Write_to_hdf5(w, MassResolution, stromgren.M_star, BoxSize, 0, NumberOfCells, FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal)
+    filename = Write_to_hdf5(w, MassResolution, centralStar.M_star, centralStar.Z, centralStar.Zi, BoxSize, 0, NumberOfCells, FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal)
     return filename
 
