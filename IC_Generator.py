@@ -10,7 +10,8 @@ import IC_Checker
 #######Select a type of IC###########################################################
 ########Mass Resolution##############################################################
 #TypeOfIC = 'Uniform-Regular'          #uniform density medium with regular Cartesian mesh
-TypeOfIC = 'Uniform-Staggered'         #uniform density medium with staggered Cartesian mesh
+#TypeOfIC = 'Uniform-Staggered'         #uniform density medium with staggered Cartesian mesh
+TypeOfIC = 'Uniform-Staggered-randomize'         #uniform density medium with staggered Cartesian mesh with 0.2Dx gaussian offset
 #TypeOfIC = 'Powerlaw'                 #uniform core + powlaw skirt
 #TypeOfIC = 'Powerlaw_with_floor'      #uniform core + powlaw skirt + uniform background
 #######Spatial Resolution#############################################################
@@ -57,6 +58,21 @@ if TypeOfIC == 'Uniform-Regular':
     print("IC-Generator: CellsPerDimension:", CellsPerDimension)
     filename = IC.Uniform_IC_Generate(centralStar, BoxSize, 
          CellsPerDimension, int(FIXED_RATE), gamma)
+    print("IC-Generator: Filename:", filename)
+    IC_Checker.Checker(filename, TypeOfIC, w, n, X_H, r0, gamma)
+
+if TypeOfIC == 'Uniform-Staggered-randomize':
+    print("IC-Generator: Generating...")
+    print("IC-Generator: Type of IC:", TypeOfIC)
+    print("IC-Generator: Gas Density:", str(n.value)+' /cm3')
+    print("IC-Generator: Gas Temperature:", str(T_init.value)+' K')
+    print("IC-Generator: gamma:", gamma)
+    print("IC-Generator: MassiveStarMass:", str(M_Star.value)+' Msun')
+    print("IC-Generator: FIXED_RATE", FIXED_RATE)
+    print("IC-Generator: BoxSize:", str(BoxSize.value)+' pc')
+    print("IC-Generator: MassResolution:", MassResolution)
+    filename = IC.StaggeredRandomize_IC_Generate(centralStar, BoxSize, 
+         MassResolution, int(FIXED_RATE), gamma)
     print("IC-Generator: Filename:", filename)
     IC_Checker.Checker(filename, TypeOfIC, w, n, X_H, r0, gamma)
 
