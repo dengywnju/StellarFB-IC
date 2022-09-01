@@ -263,14 +263,16 @@ def StaggeredRandomize_IC_Generate(centralStar, BoxSize, MassResolution, FIXED_R
     ## spacing
     dx = BoxSize / FloatType(CellsPerDimension)
     ## position of first and last cell
-    pos_first, pos_last = 0.55/2 * dx, BoxSize - (1-0.55/2) * dx
+    #pos_first, pos_last = 0.55/2 * dx, BoxSize - (1-0.55/2) * dx
+    pos_first, pos_last = 0.5 * dx, BoxSize - 0.5 * dx
     Grid1d = np.linspace(pos_first, pos_last, CellsPerDimension, dtype=FloatType)
     xx, yy, zz = np.meshgrid(Grid1d, Grid1d, Grid1d)
     Pos = np.zeros([NumberOfCells, 3], dtype=FloatType)
     Pos[:NumberOfCells//2,0] = xx.reshape(NumberOfCells//2)
     Pos[:NumberOfCells//2,1] = yy.reshape(NumberOfCells//2)
     Pos[:NumberOfCells//2,2] = zz.reshape(NumberOfCells//2)
-    pos_first, pos_last = (0.55/2+0.45) * dx, BoxSize - (1-0.55/2-0.45) * dx
+    #pos_first, pos_last = (0.55/2+0.45) * dx, BoxSize - (1-0.55/2-0.45) * dx
+    pos_first, pos_last = (0.5-0.45) * dx, BoxSize - (0.5+0.45) * dx
     Grid1d = np.linspace(pos_first, pos_last, CellsPerDimension, dtype=FloatType)
     xx, yy, zz = np.meshgrid(Grid1d, Grid1d, Grid1d)
     Pos[NumberOfCells//2:,0] = xx.reshape(NumberOfCells//2)
