@@ -26,7 +26,7 @@ class CentralStar(object):
         self.aB = self.alpha_B()
         self.Rs = self.StromgrenRadius()
         self.trec = self.RecTime()
-        self.StromgrenMass = self.IonizedMass()
+        self.StromgrenMass = self.IonizedMass()/self.X_H
         
     def alpha_B(self):
         return 2.59e-13*(1e4*u.K/(1e4*u.K))**(-0.833-0.034*np.log((self.T_init/(1e4*u.K))))*u.cm**3/u.s
@@ -207,7 +207,7 @@ def Staggered_IC_Generate(centralStar, BoxSize, MassResolution, FIXED_RATE, gamm
     CellDensity = (InitialDensity*mu*c.m_p).to(u.solMass*u.pc**(-3)).value
     BoxSize = BoxSize.value
     Mi = centralStar.StromgrenMass
-    BoxMass = (((BoxSize*u.pc)**3*centralStar.n_H*c.m_p).to(u.solMass)).value
+    BoxMass = (((BoxSize*u.pc)**3*centralStar.n*c.m_p).to(u.solMass)).value
     TargetMass = (Mi/MassResolution).value
     NumberOfCells = BoxMass/(Mi.value/MassResolution)
     CellsPerDimension = int((NumberOfCells/2)**(1/3)+1)
@@ -249,7 +249,7 @@ def StaggeredRandomize_IC_Generate(centralStar, BoxSize, MassResolution, FIXED_R
     CellDensity = (InitialDensity*mu*c.m_p).to(u.solMass*u.pc**(-3)).value
     BoxSize = BoxSize.value
     Mi = centralStar.StromgrenMass
-    BoxMass = (((BoxSize*u.pc)**3*centralStar.n_H*c.m_p).to(u.solMass)).value
+    BoxMass = (((BoxSize*u.pc)**3*centralStar.n*c.m_p).to(u.solMass)).value
     TargetMass = (Mi/MassResolution).value
     NumberOfCells = BoxMass/(Mi.value/MassResolution)
     CellsPerDimension = int((NumberOfCells/2)**(1/3)+1)
@@ -288,6 +288,52 @@ def StaggeredRandomize_IC_Generate(centralStar, BoxSize, MassResolution, FIXED_R
     filename = Write_to_hdf5(0, MassResolution, centralStar.M_star, centralStar.Z, centralStar.Zi, BoxSize, 0, NumberOfCells, FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal)
     return filename
 
+def Staggered_IC_TargetMass(centralStar, BoxSize, TargetMass, FIXED_RATE, gamma = 5./3.):
+    InitialDensity = centralStar.n.to(u.pc**(-3))
+    InitialTemperature = centralStar.T_init
+    X_H = centralStar.X_H 
+    mu = 4/(1+3*X_H)
+    CellDensity = (InitialDensity*mu*c.m_p).to(u.solMass*u.pc**(-3)).value
+    TargetMass = (TargetMass.to(u.solMass)).value
+    BoxSize = BoxSize.value
+    BoxMass = (((BoxSize*u.pc)**3*centralStar.n*c.m_p).to(u.solMass)).value
+    NumberOfCells = BoxMass/(TargetMass)
+    CellsPerDimension = int((NumberOfCells/2)**(1/3)+1)
+    NumberOfCells = 2*CellsPerDimension**3
+    BoxMass = NumberOfCells*TargetMass
+    BoxSize = (BoxMass/CellDensity)**(1/3)
+    VolumePerCell = BoxSize**3/NumberOfCells
+    MassPerCell = TargetMass
+    DensityPerCell = MassPerCell/VolumePerCell
+    UthermalPerCell = (c.k_B*InitialTemperature/mu/c.m_p/(gamma-1)).to((u.km/u.s)**2).value    #Type 1 particle
+    ## spacing
+    dx = BoxSize / FloatType(CellsPerDimension)
+    ## position of first and last cell
+    #pos_first, pos_last = 0.55/2 * dx, BoxSize - (1-0.55/2) * dx
+    pos_first, pos_last = 0.5 * dx, BoxSize - 0.5 * dx
+    Grid1d = np.linspace(pos_first, pos_last, CellsPerDimension, dtype=FloatType)
+    xx, yy, zz = np.meshgrid(Grid1d, Grid1d, Grid1d)
+    Pos = np.zeros([NumberOfCells, 3], dtype=FloatType)
+    Pos[:NumberOfCells//2,0] = xx.reshape(NumberOfCells//2)
+    Pos[:NumberOfCells//2,1] = yy.reshape(NumberOfCells//2)
+    Pos[:NumberOfCells//2,2] = zz.reshape(NumberOfCells//2)
+    #pos_first, pos_last = (0.55/2+0.45) * dx, BoxSize - (1-0.55/2-0.45) * dx
+    pos_first, pos_last = (0.5-0.45) * dx, BoxSize - (0.5+0.45) * dx
+    Grid1d = np.linspace(pos_first, pos_last, CellsPerDimension, dtype=FloatType)
+    xx, yy, zz = np.meshgrid(Grid1d, Grid1d, Grid1d)
+    Pos[NumberOfCells//2:,0] = xx.reshape(NumberOfCells//2)
+    Pos[NumberOfCells//2:,1] = yy.reshape(NumberOfCells//2)
+    Pos[NumberOfCells//2:,2] = zz.reshape(NumberOfCells//2)
+
+    Delta_x = np.random.randn(Pos.shape[0],Pos.shape[1])*0.2*dx
+    Pos = Pos + Delta_x
+    Mass = np.full(NumberOfCells, MassPerCell, dtype=FloatType)
+    ## velocity
+    Velocity = np.zeros([NumberOfCells,3], dtype=FloatType)
+    Uthermal = np.full(NumberOfCells, UthermalPerCell, dtype=FloatType)
+    filename = Write_to_hdf5(0, TargetMass, centralStar.M_star, centralStar.Z, centralStar.Zi, BoxSize, 0, NumberOfCells, FIXED_RATE, InitialTemperature, Pos, Mass, Velocity, Uthermal)
+    return filename
+
 def Staggered_IC_Generate_Wind(centralStar, BoxSize, CellsPerDimension, FIXED_RATE, gamma = 5./3.):
     InitialDensity = centralStar.n.to(u.pc**(-3))
     InitialTemperature = centralStar.T_init
@@ -296,7 +342,7 @@ def Staggered_IC_Generate_Wind(centralStar, BoxSize, CellsPerDimension, FIXED_RA
     CellDensity = (InitialDensity*mu*c.m_p).to(u.solMass*u.pc**(-3)).value
     BoxSize = BoxSize.value
     Mi = centralStar.StromgrenMass
-    BoxMass = (((BoxSize*u.pc)**3*centralStar.n_H*c.m_p).to(u.solMass)).value
+    BoxMass = (((BoxSize*u.pc)**3*centralStar.n*c.m_p).to(u.solMass)).value
     NumberOfCells = 2*CellsPerDimension**3
     VolumePerCell = BoxSize**3/NumberOfCells
     MassPerCell = VolumePerCell*CellDensity
