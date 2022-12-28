@@ -11,7 +11,7 @@ import IC_Checker
 ########Mass Resolution##############################################################
 #TypeOfIC = 'Uniform-Regular'          #uniform density medium with regular Cartesian mesh
 #TypeOfIC = 'Uniform-Staggered'         #uniform density medium with staggered Cartesian mesh
-TypeOfIC = 'Uniform-TargetMass'
+TypeOfIC = 'Uniform-TargetMass'      #uniform density medium with given masses of cells
 #TypeOfIC = 'Uniform-Staggered-randomize'         #uniform density medium with staggered Cartesian mesh with 0.2Dx gaussian offset
 #TypeOfIC = 'Powerlaw'                 #uniform core + powlaw skirt
 #TypeOfIC = 'Powerlaw_with_floor'      #uniform core + powlaw skirt + uniform background

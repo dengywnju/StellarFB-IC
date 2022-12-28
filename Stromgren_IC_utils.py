@@ -19,7 +19,7 @@ class CentralStar(object):
         self.Q = Q
         self.n = n
         self.X_H = X_H
-        self.n_H = n*X_H
+        self.n_H = n*X_H*4/(1+3*X_H)
         self.T_init = T_init
         self.Z = Z
         self.Zi = Zi
@@ -46,7 +46,7 @@ class StromgrenSphere(object):
         self.Q = Q
         self.n = n
         self.X_H = X_H
-        self.n_H = n*X_H
+        self.n_H = n*X_H*4/(1+3*X_H)
         self.T_init = T_init
         self.aB = self.alpha_B()
         self.Rs = self.StromgrenRadius()
